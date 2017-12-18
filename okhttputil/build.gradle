@@ -5,23 +5,14 @@ apply plugin: 'com.novoda.bintray-release'
 android {
     compileSdkVersion 27
     defaultConfig {
-        minSdkVersion 9
+        minSdkVersion 14
     }
     lintOptions {
         abortOnError false
         checkReleaseBuilds false
     }
 }
-allprojects {
-    tasks.withType(Javadoc) {
-        options {
-            encoding "UTF-8"
-            charSet 'UTF-8'
-            links "http://docs.oracle.com/javase/7/docs/api"
-            failOnError false
-        }
-    }
-}
+
 publish {
     userOrg = 'kavipyouxiang'// 用户所在组织,好像是用
     groupId = 'com.xiaolei'// 包名
