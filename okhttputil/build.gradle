@@ -1,0 +1,36 @@
+apply plugin: 'com.android.library'
+apply plugin: 'maven'
+apply plugin: 'com.novoda.bintray-release'
+
+android {
+    compileSdkVersion 27
+    defaultConfig {
+        minSdkVersion 9
+    }
+    lintOptions {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+allprojects {
+    tasks.withType(Javadoc) {
+        options {
+            encoding "UTF-8"
+            charSet 'UTF-8'
+            links "http://docs.oracle.com/javase/7/docs/api"
+            failOnError false
+        }
+    }
+}
+publish {
+    userOrg = 'kavipyouxiang'// 用户所在组织,好像是用
+    groupId = 'com.xiaolei'// 包名
+    artifactId = 'OkHttpUtil'// library的名字
+    version = '1.0.0'// 版本
+    description = 'an util of okhttp'
+    website = "https://github.com/xiaolei123/OkHttpUtil"
+}
+
+dependencies {
+    api 'com.squareup.okhttp3:okhttp:3.9.1'
+}
