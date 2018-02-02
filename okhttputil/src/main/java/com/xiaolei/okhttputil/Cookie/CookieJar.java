@@ -2,6 +2,9 @@ package com.xiaolei.okhttputil.Cookie;
 
 import android.content.Context;
 
+import java.net.URL;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 
 import okhttp3.Cookie;
@@ -15,18 +18,50 @@ public class CookieJar implements okhttp3.CookieJar
 {
     private Context mContext;
     private PersistentCookieStore cookieStore;
-    public CookieJar(Context context)
+    private LinkedList<String> couldSaveUrlFile = new LinkedList<>();
+
+    /**
+     * @param context     上下文
+     * @param saveUrlFile 可以保存Cookie的URI 譬如 /app/loginAuto,如果为 null 则所有请求都可以保存cookie
+     */
+    public CookieJar(Context context, List<String> saveUrlFile)
     {
         mContext = context;
-        if (cookieStore == null)
+        cookieStore = new PersistentCookieStore(mContext);
+        if (saveUrlFile != null)
         {
-            cookieStore = new PersistentCookieStore(mContext);
+            couldSaveUrlFile.addAll(saveUrlFile);
+        }
+        Iterator<String> iterator = couldSaveUrlFile.iterator();
+        while (iterator.hasNext())
+        {
+            String urlFile = iterator.next();
+            if (!urlFile.startsWith("/"))
+            {
+                couldSaveUrlFile.remove(urlFile);
+                couldSaveUrlFile.add("/" + urlFile);
+            }
         }
     }
+
+    public CookieJar(Context context)
+    {
+        this(context, null);
+    }
+
     @Override
     public void saveFromResponse(HttpUrl url, List<Cookie> cookies)
     {
-        if (cookies != null && cookies.size() > 0)
+        URL url1 = url.url();
+        String urlFile = url1.getFile();
+        boolean check = true;
+
+        if (!couldSaveUrlFile.isEmpty())
+        {
+            check = couldSaveUrlFile.contains(urlFile);
+        }
+
+        if (check && cookies != null && cookies.size() > 0)
         {
             for (Cookie item : cookies)
             {
@@ -34,6 +69,7 @@ public class CookieJar implements okhttp3.CookieJar
             }
         }
     }
+
     @Override
     public List<Cookie> loadForRequest(HttpUrl url)
     {
