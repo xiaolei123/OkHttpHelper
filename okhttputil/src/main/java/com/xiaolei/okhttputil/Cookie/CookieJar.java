@@ -24,13 +24,16 @@ public class CookieJar implements okhttp3.CookieJar
      * @param context     上下文
      * @param saveUrlFile 可以保存Cookie的URI 譬如 /app/loginAuto,如果为 null 则所有请求都可以保存cookie
      */
-    public CookieJar(Context context, List<String> saveUrlFile)
+    public CookieJar(Context context, List<URL> saveUrlFile)
     {
         mContext = context;
         cookieStore = new PersistentCookieStore(mContext);
         if (saveUrlFile != null)
         {
-            couldSaveUrlFile.addAll(saveUrlFile);
+            for (URL url : saveUrlFile)
+            {
+                couldSaveUrlFile.add(url.getFile());
+            }
         }
 
         for (int i = 0; i < couldSaveUrlFile.size(); i++)
