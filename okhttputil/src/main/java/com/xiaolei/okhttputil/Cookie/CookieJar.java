@@ -32,16 +32,18 @@ public class CookieJar implements okhttp3.CookieJar
         {
             couldSaveUrlFile.addAll(saveUrlFile);
         }
-        Iterator<String> iterator = couldSaveUrlFile.iterator();
-        while (iterator.hasNext())
+
+        for (int i = 0; i < couldSaveUrlFile.size(); i++)
         {
-            String urlFile = iterator.next();
+            String urlFile = couldSaveUrlFile.get(i);
             if (!urlFile.startsWith("/"))
             {
                 couldSaveUrlFile.remove(urlFile);
                 couldSaveUrlFile.add("/" + urlFile);
+                i -= 1;
             }
         }
+
     }
 
     public CookieJar(Context context)
