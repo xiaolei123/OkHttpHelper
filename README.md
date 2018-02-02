@@ -2,5 +2,5 @@
 an util of the okhttp
 
 ```
- implementation 'com.xiaolei:OkHttpUtil:1.0.2'
+ implementation 'com.xiaolei:OkHttpUtil:1.0.3'
 ```
