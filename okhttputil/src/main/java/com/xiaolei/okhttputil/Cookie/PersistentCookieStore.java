@@ -78,9 +78,10 @@ public class PersistentCookieStore
             cookies.get(url.host()).put(name, cookie);
         } else
         {
-            if (cookies.containsKey(url.host()))
+            Map<String, Cookie> cookieMap = cookies.get(url.host());
+            if (cookieMap != null)
             {
-                cookies.get(url.host()).remove(name);
+                cookieMap.put(name, cookie);
             }
         }
 
