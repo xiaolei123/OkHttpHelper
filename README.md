@@ -6,7 +6,7 @@ an util of the okhttp
 ```
 
 
-网络请求缓存的支持：**CacheInterceptor.java**
+网络请求缓存的支持(get,post)：**CacheInterceptor.java**
 
 Gzip网络数据压缩的支持：**GzipRequestInterceptor.java**
 
