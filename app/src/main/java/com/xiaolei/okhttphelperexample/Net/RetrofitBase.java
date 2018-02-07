@@ -3,6 +3,7 @@ package com.xiaolei.okhttphelperexample.Net;
 import android.content.Context;
 
 import com.xiaolei.okhttputil.Log.Log;
+import com.xiaolei.okhttputil.interceptor.CacheInterceptor2;
 
 import java.util.concurrent.TimeUnit;
 
@@ -33,7 +34,7 @@ public class RetrofitBase
         });
         loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
         client = new OkHttpClient.Builder()
-                // .addInterceptor(new CacheInterceptor(context))//添加缓存拦截器，添加缓存的支持
+                .addInterceptor(new CacheInterceptor2(context))//添加缓存拦截器，添加缓存的支持
                 .addInterceptor(loggingInterceptor)
                 .retryOnConnectionFailure(true)//失败重连
                 .connectTimeout(30, TimeUnit.SECONDS)//网络请求超时时间单位为秒
