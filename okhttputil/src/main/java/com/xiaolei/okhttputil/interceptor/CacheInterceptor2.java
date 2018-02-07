@@ -2,12 +2,15 @@ package com.xiaolei.okhttputil.interceptor;
 
 import android.content.Context;
 
+import com.xiaolei.okhttputil.Catch.CacheType;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
 import okhttp3.FormBody;
 import okhttp3.Interceptor;
+import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
@@ -42,13 +45,13 @@ public class CacheInterceptor2 implements Interceptor
                 Response response = chain.proceed(request);
                 if (response.isSuccessful()) // 正常了，才去缓存数据
                 {
-
+                    
                 }
                 return null;
             } catch (Exception e)
             {
                 // 网络异常，取缓存
-
+                
                 return null;
             }
         } else
@@ -57,15 +60,37 @@ public class CacheInterceptor2 implements Interceptor
         }
     }
 
-    private Response getResponseFromInput(InputStream inputStream)
+    private Response getResponse(String key,Request request)
     {
+        InputStream inputStream = null;
+        int contentLength = 0;
+        try
+        {
+            contentLength = inputStream.available();
+        } catch (IOException e)
+        {
+            contentLength = 0;
+        }
         Source source = Okio.source(inputStream);
         BufferedSource bufferedSource = Okio.buffer(source);
-        ResponseBody body = ResponseBody.create(null, 0, bufferedSource);
-        Response response = new Response.Builder().body(body).build();
+        ResponseBody body = ResponseBody.create(null, contentLength, bufferedSource);
+        Response response = new Response.Builder()
+                .code(200)
+                .body(body)
+                .request(request)
+                .message(CacheType.DISK_CACHE)
+                .protocol(Protocol.HTTP_1_0)
+                .build();
         return response;
     }
-
+    
+    private void storeResponse(Response response)
+    {
+        ResponseBody responseBody = response.body();
+        Protocol protocol = response.protocol();
+        
+    }
+    
     /**
      * 获取在Post方式下。向服务器发送的参数
      *

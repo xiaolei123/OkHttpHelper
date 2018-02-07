@@ -3,11 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/OkHttpHelper.iml" filepath="$PROJECT_DIR$/OkHttpHelper.iml" />
-      <module fileurl="file://D:\AndroidProjects\OkHttpHelper\OkHttpHelper.iml" filepath="D:\AndroidProjects\OkHttpHelper\OkHttpHelper.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://D:\AndroidProjects\OkHttpHelper\app\app.iml" filepath="D:\AndroidProjects\OkHttpHelper\app\app.iml" />
       <module fileurl="file://$PROJECT_DIR$/okhttputil/okhttputil.iml" filepath="$PROJECT_DIR$/okhttputil/okhttputil.iml" />
-      <module fileurl="file://D:\AndroidProjects\OkHttpHelper\okhttputil\okhttputil.iml" filepath="D:\AndroidProjects\OkHttpHelper\okhttputil\okhttputil.iml" />
     </modules>
   </component>
 </project>
