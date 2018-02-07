@@ -2,6 +2,7 @@ package com.xiaolei.okhttputil.interceptor;
 
 import android.content.Context;
 
+import com.xiaolei.okhttputil.Cache2.DiskCache;
 import com.xiaolei.okhttputil.Catch.CacheType;
 
 import java.io.File;
@@ -10,6 +11,7 @@ import java.io.InputStream;
 
 import okhttp3.FormBody;
 import okhttp3.Interceptor;
+import okhttp3.MediaType;
 import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -22,9 +24,11 @@ import okio.*;
  */
 public class CacheInterceptor2 implements Interceptor
 {
+    private DiskCache diskCache;
+
     public CacheInterceptor2(Context context, File cacheDir)
     {
-        
+        diskCache = DiskCache.getInstance(cacheDir, context);
     }
 
     @Override
@@ -45,13 +49,14 @@ public class CacheInterceptor2 implements Interceptor
                 Response response = chain.proceed(request);
                 if (response.isSuccessful()) // 正常了，才去缓存数据
                 {
-                    
+                    storeResponse(response, key);
+
                 }
-                return null;
+                return response;
             } catch (Exception e)
             {
                 // 网络异常，取缓存
-                
+
                 return null;
             }
         } else
@@ -60,7 +65,7 @@ public class CacheInterceptor2 implements Interceptor
         }
     }
 
-    private Response getResponse(String key,Request request)
+    private Response getResponse(String key, Request request)
     {
         InputStream inputStream = null;
         int contentLength = 0;
@@ -83,14 +88,32 @@ public class CacheInterceptor2 implements Interceptor
                 .build();
         return response;
     }
-    
-    private void storeResponse(Response response)
+
+    /**
+     * 缓存返回的数据
+     *
+     * @param response
+     */
+    private void storeResponse(Response response, String key)
     {
         ResponseBody responseBody = response.body();
-        Protocol protocol = response.protocol();
-        
+        if (responseBody != null)
+        {
+            MediaType mediaType = responseBody.contentType();
+            String typeStr = "";
+            if (mediaType != null)
+            {
+                typeStr = mediaType.toString();
+            }
+            long contentLength = responseBody.contentLength();
+            Protocol protocol = response.protocol();
+            diskCache.put(key, responseBody.byteStream());
+            diskCache.put(key + "@:mediaType", typeStr);
+            diskCache.put(key + "@:contentLength", contentLength + "");
+            diskCache.put(key + "@:protocol", protocol.name() + "");
+        }
     }
-    
+
     /**
      * 获取在Post方式下。向服务器发送的参数
      *

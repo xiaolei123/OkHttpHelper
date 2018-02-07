@@ -19,12 +19,12 @@ public class DiskCache
     private static DiskCache instance;
     private DiskLruCache diskLruCache;
     private int maxSize = 1024 * 1024 * 60;
-    
+
     private DiskCache(File cacheDir, Context context)
     {
-        if(!cacheDir.isDirectory())
+        if (!cacheDir.exists())
         {
-            throw new RuntimeException("只能为目录");
+            boolean result = cacheDir.mkdirs();
         }
         try
         {
@@ -128,6 +128,7 @@ public class DiskCache
 
     /**
      * 根据Key获取字符串
+     *
      * @param key
      * @return
      */
@@ -152,6 +153,7 @@ public class DiskCache
 
     /**
      * 根据Key获取流
+     *
      * @param key
      * @return
      */
