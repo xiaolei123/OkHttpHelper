@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 
 /**
  * Created by xiaolei on 2018/2/7.
@@ -140,6 +141,10 @@ public class DiskCache
             try
             {
                 DiskLruCache.Snapshot snapshot = diskLruCache.get(key);
+                if (snapshot == null)
+                {
+                    return null;
+                }
                 return snapshot.getString(0);
             } catch (IOException e)
             {
@@ -166,6 +171,10 @@ public class DiskCache
             try
             {
                 snapshot = diskLruCache.get(key);
+                if (snapshot == null)
+                {
+                    return null;
+                }
                 return snapshot.getInputStream(0);
             } catch (IOException e)
             {
@@ -176,4 +185,35 @@ public class DiskCache
             return null;
         }
     }
+
+    /**
+     * 数据中是否存在
+     *
+     * @param key
+     * @return
+     */
+    public boolean containsKey(String key)
+    {
+        key = Util.encryptMD5(key);
+        boolean result = false;
+        if (diskLruCache != null)
+        {
+            try
+            {
+                DiskLruCache.Snapshot snapshot = diskLruCache.get(key);
+                if (snapshot == null)
+                {
+                    result = false;
+                } else
+                {
+                    result = true;
+                }
+            } catch (IOException e)
+            {
+                return false;
+            }
+        }
+        return result;
+    }
+
 }

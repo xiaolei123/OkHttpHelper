@@ -25,12 +25,18 @@ import okio.*;
 public class CacheInterceptor2 implements Interceptor
 {
     private DiskCache diskCache;
+    private static final String cacheDirName = "ResponseCache";
 
     public CacheInterceptor2(Context context, File cacheDir)
     {
         diskCache = DiskCache.getInstance(cacheDir, context);
     }
 
+    public CacheInterceptor2(Context context)
+    {
+        this(context, new File(context.getCacheDir(), cacheDirName));
+    }
+    
     @Override
     public Response intercept(Chain chain) throws IOException
     {
@@ -50,25 +56,38 @@ public class CacheInterceptor2 implements Interceptor
                 if (response.isSuccessful()) // 正常了，才去缓存数据
                 {
                     storeResponse(response, key);
-
+                    response = getResponse(key, request, false);
                 }
                 return response;
             } catch (Exception e)
             {
                 // 网络异常，取缓存
-
-                return null;
+                if (diskCache.containsKey(key)) // 如果缓存里面有数据
+                {
+                    // 则取缓存
+                    return getResponse(key, request, true);
+                } else
+                {
+                    // 否则，正常流程走
+                    return chain.proceed(request);
+                }
             }
         } else
         {
-            return chain.proceed(request);
+            Response response = chain.proceed(request);
+            return response;
         }
     }
 
-    private Response getResponse(String key, Request request)
+    private Response getResponse(String key, Request request, boolean isFromCache)
     {
-        InputStream inputStream = null;
+        InputStream inputStream = diskCache.getStream(key);
+        String mediaTypeStr = diskCache.getString(key + "@:mediaType");
+        String protocolStr = diskCache.getString(key + "@:protocol");
+        String messageStr = diskCache.getString(key + "@:message");
         int contentLength = 0;
+        Protocol protocol = (protocolStr == null || protocolStr.isEmpty()) ? Protocol.HTTP_1_1 : Protocol.valueOf(protocolStr);
+        MediaType mediaType = (mediaTypeStr == null) ? null : MediaType.parse(mediaTypeStr);
         try
         {
             contentLength = inputStream.available();
@@ -78,14 +97,14 @@ public class CacheInterceptor2 implements Interceptor
         }
         Source source = Okio.source(inputStream);
         BufferedSource bufferedSource = Okio.buffer(source);
-        ResponseBody body = ResponseBody.create(null, contentLength, bufferedSource);
-        Response response = new Response.Builder()
-                .code(200)
-                .body(body)
-                .request(request)
-                .message(CacheType.DISK_CACHE)
-                .protocol(Protocol.HTTP_1_0)
-                .build();
+        ResponseBody body = ResponseBody.create(mediaType, contentLength, bufferedSource);
+        Response response = new Response.Builder().
+                code(200).
+                body(body).
+                request(request).
+                message(isFromCache ? CacheType.DISK_CACHE : messageStr).
+                protocol(protocol).
+                build();
         return response;
     }
 
@@ -97,6 +116,7 @@ public class CacheInterceptor2 implements Interceptor
     private void storeResponse(Response response, String key)
     {
         ResponseBody responseBody = response.body();
+        String message = response.message();
         if (responseBody != null)
         {
             MediaType mediaType = responseBody.contentType();
@@ -105,12 +125,11 @@ public class CacheInterceptor2 implements Interceptor
             {
                 typeStr = mediaType.toString();
             }
-            long contentLength = responseBody.contentLength();
             Protocol protocol = response.protocol();
             diskCache.put(key, responseBody.byteStream());
             diskCache.put(key + "@:mediaType", typeStr);
-            diskCache.put(key + "@:contentLength", contentLength + "");
             diskCache.put(key + "@:protocol", protocol.name() + "");
+            diskCache.put(key + "@:message", message == null ? "" : message);
         }
     }
 
