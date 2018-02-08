@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.xiaolei.okhttphelperexample">
-    
+
     <uses-permission android:name="android.permission.INTERNET"/>
-    
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -19,17 +19,23 @@
             </intent-filter>
         </activity>
 
-        <!--文件服务-->
+        <!-- 文件服务 -->
         <provider
             android:name="android.support.v4.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
-            <!--元数据-->
+
+            <!-- 元数据 -->
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"/>
         </provider>
+
+        <activity android:name=".CacheTextActivity">
+        </activity>
+        <activity android:name=".CacheImgFileActivity">
+        </activity>
     </application>
 
 </manifest>

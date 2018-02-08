@@ -17,5 +17,10 @@ public interface Net
 {
     @Headers(CacheHeaders.NORMAL)
     @GET("/")
-    public Call<String> getIndex(@Query("w") String a);
+    public Call<String> getText(@Query("w") String a);
+
+    @Headers(CacheHeaders.NORMAL)
+    @GET("https://pic4.zhimg.com/v2-67ee006ec9f4171121b245c57079bee6_r.jpg")
+    Call<ResponseBody> getImg();
+    
 }

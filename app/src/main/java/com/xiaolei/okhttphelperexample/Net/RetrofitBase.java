@@ -41,7 +41,7 @@ public class RetrofitBase
                 .connectTimeout(30, TimeUnit.SECONDS)//网络请求超时时间单位为秒
                 .build();
         retrofit = new Retrofit.Builder()  //01:获取Retrofit对象
-                .baseUrl("http://192.168.1.124:8080/") //02采用链式结构绑定Base url
+                .baseUrl("http://www.baidu.com/") //02采用链式结构绑定Base url
                 .addConverterFactory(ScalarsConverterFactory.create())//字符串
                 .addConverterFactory(GsonConverterFactory.create())//再将转换成bean
                 .client(client)
