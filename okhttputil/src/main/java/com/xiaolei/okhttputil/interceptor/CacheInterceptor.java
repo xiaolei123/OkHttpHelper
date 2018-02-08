@@ -1,38 +1,46 @@
 package com.xiaolei.okhttputil.interceptor;
 
-
 import android.content.Context;
 
-
-import com.xiaolei.okhttputil.Catch.CacheManager;
+import com.xiaolei.okhttputil.Catch.DiskCache;
 import com.xiaolei.okhttputil.Catch.CacheType;
-import com.xiaolei.okhttputil.Log.Log;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import okhttp3.FormBody;
+import okhttp3.Headers;
 import okhttp3.Interceptor;
+import okhttp3.MediaType;
 import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import okio.*;
 
 /**
- * 字符串的缓存类
- * Created by xiaolei on 2017/12/9.
+ * 高级缓存,可以缓存一切数据
+ * Created by xiaolei on 2018/2/7.
  */
 public class CacheInterceptor implements Interceptor
 {
-    private Context context;
-
-    public void setContext(Context context)
+    private DiskCache diskCache;
+    private static final String cacheDirName = "ResponseCache";
+    
+    private final String headerSplite = "@:header:@"; // header与header之间的分隔符
+    private final String headKVSplite = "@:header:=@";// heade里面，Key与Value的分隔符
+    
+    public CacheInterceptor(Context context, File cacheDir)
     {
-        this.context = context;
+        diskCache = DiskCache.getInstance(cacheDir, context);
     }
 
     public CacheInterceptor(Context context)
     {
-        this.context = context;
+        this(context, new File(context.getCacheDir(), cacheDirName));
     }
 
     @Override
@@ -41,92 +49,141 @@ public class CacheInterceptor implements Interceptor
         Request request = chain.request();
         String cacheHead = request.header("cache");
         String cache_control = request.header("Cache-Control");
-
         if ("true".equals(cacheHead) ||                              // 意思是要缓存
                 (cache_control != null && !cache_control.isEmpty())) // 这里还支持WEB端协议的缓存头
         {
-            long oldnow = System.currentTimeMillis();
             String url = request.url().url().toString();
-            String responStr = null;
             String reqBodyStr = getPostParams(request);
+            String key = url + "?" + reqBodyStr;//链接就是缓存的key
             try
             {
+                // 网络正常，缓存正常数据
                 Response response = chain.proceed(request);
-                if (response.isSuccessful()) // 只有在网络请求返回成功之后，才进行缓存处理，否则，404存进缓存，岂不笑话
+                if (response.isSuccessful()) // 正常了，才去缓存数据
                 {
-                    ResponseBody responseBody = response.body();
-                    if (responseBody != null)
-                    {
-                        responStr = responseBody.string();
-                        if (responStr == null)
-                        {
-                            responStr = "";
-                        }
-                        CacheManager.getInstance(context).setCache(CacheManager.encryptMD5(url + reqBodyStr), responStr);//存缓存，以链接+参数进行MD5编码为KEY存
-                        Log.i("HttpRetrofit", "--> Push Cache:" + url + " :Success");
-                    }
-                    return getOnlineResponse(response, responStr);
-                } else
-                {
-                    return chain.proceed(request);
+                    storeResponse(response, key);
+                    response = getResponse(key, request, false);
                 }
+                return response;
             } catch (Exception e)
             {
-                e.printStackTrace();
-                Response response = getCacheResponse(request, oldnow); // 发生异常了，我这里就开始去缓存，但是有可能没有缓存，那么久需要丢给下一轮处理了
-                if (response == null)
+                // 网络异常，取缓存
+                if (diskCache.containsKey(key)) // 如果缓存里面有数据
                 {
-                    return chain.proceed(request);//丢给下一轮处理
+                    // 则取缓存
+                    return getResponse(key, request, true);
                 } else
                 {
-                    return response;
+                    // 否则，正常流程走
+                    return chain.proceed(request);
                 }
             }
         } else
         {
-            return chain.proceed(request);
+            Response response = chain.proceed(request);
+            return response;
         }
     }
 
-    private Response getCacheResponse(Request request, long oldNow)
+    /**
+     * 根据key，以及request，获取对应的Response响应
+     * @param key
+     * @param request
+     * @param isFromCache 是否来源于缓存
+     * @return
+     */
+    private Response getResponse(String key, Request request, boolean isFromCache)
     {
-        Log.i("HttpRetrofit", "--> Try to Get Cache   --------");
-        String url = request.url().url().toString();
-        String params = getPostParams(request);
-        String cacheStr = CacheManager.getInstance(context).getCache(CacheManager.encryptMD5(url + params));//取缓存，以链接+参数进行MD5编码为KEY取
-        if (cacheStr == null)
+        InputStream inputStream = diskCache.getStream(key);
+        String mediaTypeStr = diskCache.getString(key + "@:mediaType");
+        String protocolStr = diskCache.getString(key + "@:protocol");
+        String messageStr = diskCache.getString(key + "@:message");
+        String headerStr = diskCache.getString(key + "@:headers");
+        headerStr = headerStr == null ? "" : headerStr;//防止为空
+
+        int contentLength = 0;
+        Protocol protocol = (protocolStr == null || protocolStr.isEmpty()) ? Protocol.HTTP_1_1 : Protocol.valueOf(protocolStr);
+        MediaType mediaType = (mediaTypeStr == null) ? null : MediaType.parse(mediaTypeStr);
+        Map<String, String> headmap = new LinkedHashMap<>();
+        String heads[] = headerStr.split(headerSplite);
+        for (String a : heads)
         {
-            Log.i("HttpRetrofit", "<-- Get Cache Failure ---------");
-            return null;
+            String keyValue[] = a.split(headKVSplite);
+            if (keyValue.length == 2 && keyValue[0] != null && keyValue[1] != null)
+            {
+                headmap.put(keyValue[0], keyValue[1]);
+            }
         }
-        Response response = new Response.Builder()
-                .code(200)
-                .body(ResponseBody.create(null, cacheStr))
-                .request(request)
-                .message(CacheType.DISK_CACHE)
-                .protocol(Protocol.HTTP_1_0)
-                .build();
-        long useTime = System.currentTimeMillis() - oldNow;
-        Log.i("HttpRetrofit", "<-- Get Cache: " + response.code() + " " + response.message() + " " + url + " (" + useTime + "ms)");
-        Log.i("HttpRetrofit", cacheStr + "");
+        Headers headers = Headers.of(headmap);
+        try
+        {
+            contentLength = inputStream.available();
+        } catch (IOException e)
+        {
+            contentLength = 0;
+        }
+        Source source = Okio.source(inputStream);
+        BufferedSource bufferedSource = Okio.buffer(source);
+        ResponseBody body = ResponseBody.create(mediaType, contentLength, bufferedSource);
+        Response response = new Response.Builder().
+                code(200).
+                body(body).
+                headers(headers).
+                request(request).
+                message(isFromCache ? CacheType.DISK_CACHE : messageStr).
+                protocol(protocol).
+                build();
         return response;
     }
 
-    private Response getOnlineResponse(Response response, String body)
+    /**
+     * 将Response全部缓存起来
+     *
+     * @param response
+     */
+    private void storeResponse(Response response, String key)
     {
         ResponseBody responseBody = response.body();
-        return new Response.Builder()
-                .code(response.code())
-                .body(ResponseBody.create(responseBody == null ? null : responseBody.contentType(), body))
-                .request(response.request())
-                .message(response.message())
-                .protocol(response.protocol())
-                .build();
+        String message = response.message();
+        Headers headers = response.headers();
+        if (responseBody != null)
+        {
+            MediaType mediaType = responseBody.contentType();
+            String typeStr = "";
+            if (mediaType != null)
+            {
+                typeStr = mediaType.toString();
+            }
+            Protocol protocol = response.protocol();
+
+            if (headers != null)
+            {
+                StringBuilder stringBuilder = new StringBuilder();
+                for (int i = 0; i < headers.size(); i++)
+                {
+                    String name = headers.name(i);
+                    String value = headers.get(name);
+                    stringBuilder.append(name).append(headKVSplite).append(value);
+                    if (i + 1 != headers.size())
+                    {
+                        // 调皮的分隔符
+                        stringBuilder.append(headerSplite);
+                    }
+                }
+                diskCache.put(key + "@:headers", stringBuilder.toString());
+                stringBuilder.delete(0, stringBuilder.length() - 1);//清空
+            }
+
+            diskCache.put(key, responseBody.byteStream());
+            diskCache.put(key + "@:mediaType", typeStr);
+            diskCache.put(key + "@:protocol", protocol.name() + "");
+            diskCache.put(key + "@:message", message == null ? "" : message);
+        }
     }
 
     /**
      * 获取在Post方式下。向服务器发送的参数
-     *
+     * 如果是Get，那么返回空字符串
      * @param request
      * @return
      */
@@ -154,5 +211,4 @@ public class CacheInterceptor implements Interceptor
         }
         return reqBodyStr;
     }
-
 }

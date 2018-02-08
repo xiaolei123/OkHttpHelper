@@ -1,4 +1,4 @@
-package com.xiaolei.okhttputil.Cache2;
+package com.xiaolei.okhttputil.Catch;
 
 import android.content.Context;
 
@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.List;
 
 /**
  * Created by xiaolei on 2018/2/7.

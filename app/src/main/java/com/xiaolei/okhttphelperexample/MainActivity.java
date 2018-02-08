@@ -36,7 +36,7 @@ public class MainActivity extends Activity
     TextView text;
     Button button;
     ScrollView scrollview;
-    
+
     SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
 
     @Override
@@ -47,7 +47,7 @@ public class MainActivity extends Activity
         retrofitBase = new RetrofitBase(this);
         retrofit = retrofitBase.getRetrofit();
         net = retrofit.create(Net.class);
-        
+
         text = findViewById(R.id.text);
         button = findViewById(R.id.button);
         scrollview = findViewById(R.id.scrollview);
@@ -63,25 +63,18 @@ public class MainActivity extends Activity
 
     private void click()
     {
-        Call<ResponseBody> call = net.getIndex("兰州市");
-        call.enqueue(new Callback<ResponseBody>()
+        Call<String> call = net.getIndex("兰州市");
+        call.enqueue(new Callback<String>()
         {
             @Override
-            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response)
+            public void onResponse(Call<String> call, Response<String> response)
             {
                 Date date = new Date();
-                if (response.isSuccessful())
-                {
-                    InputStream inputStream = response.body().byteStream();
-                    Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-                    Drawable drawable = new BitmapDrawable(bitmap);
-                    scrollview.setBackgroundDrawable(drawable);
-                }
-                text.setText("\n" + format.format(date));
+                text.setText(response.body() + "\n" + format.format(date));
             }
-
+            
             @Override
-            public void onFailure(Call<ResponseBody> call, Throwable t)
+            public void onFailure(Call<String> call, Throwable t)
             {
                 t.printStackTrace();
                 text.setText("出错了");
