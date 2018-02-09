@@ -236,6 +236,9 @@ public class CacheInterceptor implements Interceptor
     }
 
 
+    /**
+     * 选择缓存方式，是缓存文件的方式，还是SQLite的方式
+     */
     public static enum Type
     {
         FILE, SQLITE
