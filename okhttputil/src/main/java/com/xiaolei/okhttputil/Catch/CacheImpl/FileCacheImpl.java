@@ -1,8 +1,9 @@
-package com.xiaolei.okhttputil.Catch;
+package com.xiaolei.okhttputil.Catch.CacheImpl;
 
 import android.content.Context;
 
 import com.jakewharton.disklrucache.DiskLruCache;
+import com.xiaolei.okhttputil.Catch.Interfaces.CacheInterface;
 import com.xiaolei.okhttputil.Utils.Util;
 
 import java.io.File;
@@ -11,16 +12,17 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
+ * 将网络数据，缓存到本地文件的实现方式
  * Created by xiaolei on 2018/2/7.
  */
 
-public class DiskCache
+public class FileCacheImpl implements CacheInterface
 {
-    private static DiskCache instance;
+    private static FileCacheImpl instance;
     private DiskLruCache diskLruCache;
     private int maxSize = 1024 * 1024 * 60;
 
-    private DiskCache(File cacheDir, Context context)
+    private FileCacheImpl(File cacheDir, Context context)
     {
         if (!cacheDir.exists())
         {
@@ -35,11 +37,11 @@ public class DiskCache
         }
     }
 
-    public synchronized static DiskCache getInstance(File cacheDir, Context context)
+    public synchronized static FileCacheImpl getInstance(File cacheDir, Context context)
     {
         if (instance == null)
         {
-            instance = new DiskCache(cacheDir, context);
+            instance = new FileCacheImpl(cacheDir, context);
         }
         return instance;
     }
@@ -50,6 +52,7 @@ public class DiskCache
      * @param key
      * @param value
      */
+    @Override
     public void put(String key, String value)
     {
         key = Util.encryptMD5(key);
@@ -88,6 +91,7 @@ public class DiskCache
      * @param key
      * @param inputStream
      */
+    @Override
     public void put(String key, InputStream inputStream)
     {
         key = Util.encryptMD5(key);
@@ -132,6 +136,7 @@ public class DiskCache
      * @param key
      * @return
      */
+    @Override
     public String getString(String key)
     {
         key = Util.encryptMD5(key);
@@ -161,6 +166,7 @@ public class DiskCache
      * @param key
      * @return
      */
+    @Override
     public InputStream getStream(String key)
     {
         key = Util.encryptMD5(key);
@@ -191,6 +197,7 @@ public class DiskCache
      * @param key
      * @return
      */
+    @Override
     public boolean containsKey(String key)
     {
         key = Util.encryptMD5(key);

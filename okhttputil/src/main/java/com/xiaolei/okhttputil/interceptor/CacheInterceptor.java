@@ -2,7 +2,9 @@ package com.xiaolei.okhttputil.interceptor;
 
 import android.content.Context;
 
-import com.xiaolei.okhttputil.Catch.DiskCache;
+import com.xiaolei.okhttputil.Catch.CacheImpl.FileCacheImpl;
+import com.xiaolei.okhttputil.Catch.CacheImpl.SqliteCacheImpl;
+import com.xiaolei.okhttputil.Catch.Interfaces.CacheInterface;
 import com.xiaolei.okhttputil.Catch.CacheType;
 
 import java.io.File;
@@ -27,20 +29,39 @@ import okio.*;
  */
 public class CacheInterceptor implements Interceptor
 {
-    private DiskCache diskCache;
+    private CacheInterface cacheImpl;
     private static final String cacheDirName = "ResponseCache";
-    
+
     private final String headerSplite = "@:header:@"; // header与header之间的分隔符
     private final String headKVSplite = "@:header:=@";// heade里面，Key与Value的分隔符
-    
+
+    public CacheInterceptor(Context context, File cacheDir, Type type)
+    {
+        switch (type)
+        {
+            case FILE:
+                cacheImpl = FileCacheImpl.getInstance(cacheDir, context);
+                break;
+            case SQLITE:
+                cacheImpl = SqliteCacheImpl.getInstance(cacheDir, context);
+                break;
+        }
+
+    }
+
     public CacheInterceptor(Context context, File cacheDir)
     {
-        diskCache = DiskCache.getInstance(cacheDir, context);
+        this(context, cacheDir, Type.FILE);
     }
 
     public CacheInterceptor(Context context)
     {
         this(context, new File(context.getCacheDir(), cacheDirName));
+    }
+
+    public CacheInterceptor(Context context, Type type)
+    {
+        this(context, new File(context.getCacheDir(), cacheDirName), type);
     }
 
     @Override
@@ -68,7 +89,7 @@ public class CacheInterceptor implements Interceptor
             } catch (Exception e)
             {
                 // 网络异常，取缓存
-                if (diskCache.containsKey(key)) // 如果缓存里面有数据
+                if (cacheImpl.containsKey(key)) // 如果缓存里面有数据
                 {
                     // 则取缓存
                     return getResponse(key, request, true);
@@ -87,6 +108,7 @@ public class CacheInterceptor implements Interceptor
 
     /**
      * 根据key，以及request，获取对应的Response响应
+     *
      * @param key
      * @param request
      * @param isFromCache 是否来源于缓存
@@ -94,11 +116,11 @@ public class CacheInterceptor implements Interceptor
      */
     private Response getResponse(String key, Request request, boolean isFromCache)
     {
-        InputStream inputStream = diskCache.getStream(key);
-        String mediaTypeStr = diskCache.getString(key + "@:mediaType");
-        String protocolStr = diskCache.getString(key + "@:protocol");
-        String messageStr = diskCache.getString(key + "@:message");
-        String headerStr = diskCache.getString(key + "@:headers");
+        InputStream inputStream = cacheImpl.getStream(key);
+        String mediaTypeStr = cacheImpl.getString(key + "@:mediaType");
+        String protocolStr = cacheImpl.getString(key + "@:protocol");
+        String messageStr = cacheImpl.getString(key + "@:message");
+        String headerStr = cacheImpl.getString(key + "@:headers");
         headerStr = headerStr == null ? "" : headerStr;//防止为空
 
         int contentLength = 0;
@@ -170,20 +192,21 @@ public class CacheInterceptor implements Interceptor
                         stringBuilder.append(headerSplite);
                     }
                 }
-                diskCache.put(key + "@:headers", stringBuilder.toString());
+                cacheImpl.put(key + "@:headers", stringBuilder.toString());
                 stringBuilder.delete(0, stringBuilder.length() - 1);//清空
             }
 
-            diskCache.put(key, responseBody.byteStream());
-            diskCache.put(key + "@:mediaType", typeStr);
-            diskCache.put(key + "@:protocol", protocol.name() + "");
-            diskCache.put(key + "@:message", message == null ? "" : message);
+            cacheImpl.put(key, responseBody.byteStream());
+            cacheImpl.put(key + "@:mediaType", typeStr);
+            cacheImpl.put(key + "@:protocol", protocol.name() + "");
+            cacheImpl.put(key + "@:message", message == null ? "" : message);
         }
     }
 
     /**
      * 获取在Post方式下。向服务器发送的参数
      * 如果是Get，那么返回空字符串
+     *
      * @param request
      * @return
      */
@@ -210,5 +233,11 @@ public class CacheInterceptor implements Interceptor
             }
         }
         return reqBodyStr;
+    }
+
+
+    public static enum Type
+    {
+        FILE, SQLITE
     }
 }

@@ -24,6 +24,11 @@ class CacheTextActivity : Activity()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_cache_text)
         button.setOnClickListener { click() }
+        
+        val list = LinkedList<Byte>()
+        
+        list.toByteArray()
+        
     }
 
     private fun click()
