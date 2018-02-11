@@ -23,4 +23,7 @@ public interface Net
     @GET("https://pic4.zhimg.com/v2-67ee006ec9f4171121b245c57079bee6_r.jpg")
     Call<ResponseBody> getImg();
     
+    @Headers(CacheHeaders.NORMAL)
+    @GET("http://192.168.1.122:8080/app/testEmpty")
+    Call<String> getEmpty(); 
 }

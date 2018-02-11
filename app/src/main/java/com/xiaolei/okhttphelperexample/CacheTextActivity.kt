@@ -2,6 +2,7 @@ package com.xiaolei.okhttphelperexample
 
 import android.app.Activity
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import com.xiaolei.okhttphelperexample.Net.Net
 import com.xiaolei.okhttphelperexample.Net.RetrofitBase
@@ -18,17 +19,17 @@ class CacheTextActivity : Activity()
     private val retrofitBase by lazy { RetrofitBase(this) }
     private val retrofit by lazy { retrofitBase.retrofit }
     private val net by lazy { retrofit.create(Net::class.java) }
-    
+
     override fun onCreate(savedInstanceState: Bundle?)
     {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_cache_text)
         button.setOnClickListener { click() }
-        
+        getEmpty.setOnClickListener { getEmpty() }
         val list = LinkedList<Byte>()
-        
+
         list.toByteArray()
-        
+
     }
 
     private fun click()
@@ -42,10 +43,29 @@ class CacheTextActivity : Activity()
                 val date = Date()
                 text.text = response.body() + "\n" + format.format(date)
             }
+
             override fun onFailure(call: Call<String>, t: Throwable)
             {
                 t.printStackTrace()
                 text.text = "出错了"
+            }
+        })
+    }
+
+    private fun getEmpty()
+    {
+        // 这个接口，会返回空字符串
+        val call = net.empty
+        call.enqueue(object : Callback<String>
+        {
+            override fun onResponse(call: Call<String>?, response: Response<String>?)
+            {
+                text.text = response?.body() ?: "NULL"
+            }
+
+            override fun onFailure(call: Call<String>?, t: Throwable?)
+            {
+                text.text = t.toString()
             }
         })
     }

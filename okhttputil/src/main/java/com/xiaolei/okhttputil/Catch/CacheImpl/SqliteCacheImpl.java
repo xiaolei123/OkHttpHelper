@@ -94,6 +94,12 @@ public class SqliteCacheImpl implements CacheInterface
         try
         {
             sqLiteDatabase.execSQL("delete from " + BlobTab + " where key= '" + key + "'");
+
+            ContentValues nullValue = new ContentValues();
+            nullValue.put("key", key);
+            nullValue.put("value", "".getBytes());
+            sqLiteDatabase.insert(BlobTab, null, nullValue);
+            
             int len = 0;
             while ((len = inputStream.read(buff)) > 0)
             {
@@ -107,7 +113,6 @@ public class SqliteCacheImpl implements CacheInterface
             }
         } catch (Exception e)
         {
-            e.printStackTrace();
             e.printStackTrace();
         }
     }
