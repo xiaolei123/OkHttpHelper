@@ -6,6 +6,7 @@ import com.xiaolei.okhttputil.Catch.CacheImpl.FileCacheImpl;
 import com.xiaolei.okhttputil.Catch.CacheImpl.SqliteCacheImpl;
 import com.xiaolei.okhttputil.Catch.Interfaces.CacheInterface;
 import com.xiaolei.okhttputil.Catch.CacheType;
+import com.xiaolei.okhttputil.Stream.ProxyInputStream;
 
 import java.io.File;
 import java.io.IOException;
@@ -82,8 +83,7 @@ public class CacheInterceptor implements Interceptor
                 Response response = chain.proceed(request);
                 if (response.isSuccessful()) // 正常了，才去缓存数据
                 {
-                    storeResponse(response, key);
-                    response = getResponse(key, request, false);
+                    response = storeResponse(response, key);
                 }
                 return response;
             } catch (Exception e)
@@ -92,7 +92,7 @@ public class CacheInterceptor implements Interceptor
                 if (cacheImpl.containsKey(key)) // 如果缓存里面有数据
                 {
                     // 则取缓存
-                    return getResponse(key, request, true);
+                    return getResponse(key, request);
                 } else
                 {
                     // 否则，正常流程走
@@ -111,10 +111,9 @@ public class CacheInterceptor implements Interceptor
      *
      * @param key
      * @param request
-     * @param isFromCache 是否来源于缓存
      * @return
      */
-    private Response getResponse(String key, Request request, boolean isFromCache)
+    private Response getResponse(String key, Request request)
     {
         InputStream inputStream = cacheImpl.getStream(key);
         String mediaTypeStr = cacheImpl.getString(key + "@:mediaType");
@@ -152,7 +151,7 @@ public class CacheInterceptor implements Interceptor
                 body(body).
                 headers(headers).
                 request(request).
-                message(isFromCache ? CacheType.DISK_CACHE : messageStr).
+                message(CacheType.DISK_CACHE).
                 protocol(protocol).
                 build();
         return response;
@@ -163,7 +162,7 @@ public class CacheInterceptor implements Interceptor
      *
      * @param response
      */
-    private void storeResponse(Response response, String key)
+    private Response storeResponse(Response response, String key)
     {
         ResponseBody responseBody = response.body();
         String message = response.message();
@@ -195,12 +194,20 @@ public class CacheInterceptor implements Interceptor
                 cacheImpl.put(key + "@:headers", stringBuilder.toString());
                 stringBuilder.delete(0, stringBuilder.length() - 1);//清空
             }
-
-            cacheImpl.put(key, responseBody.byteStream());
+            ProxyInputStream proxyStream = new ProxyInputStream(responseBody.byteStream());
+            cacheImpl.put(key, proxyStream);
             cacheImpl.put(key + "@:mediaType", typeStr);
             cacheImpl.put(key + "@:protocol", protocol.name() + "");
             cacheImpl.put(key + "@:message", message == null ? "" : message);
+            
+            
+            InputStream inputStream = cacheImpl.getStream(key);
+            Source source = Okio.source(inputStream);
+            BufferedSource bufferedSource = Okio.buffer(source);
+            ResponseBody body = ResponseBody.create(mediaType, responseBody.contentLength(), bufferedSource);
+            return response.newBuilder().body(body).build();
         }
+        return response;
     }
 
     /**
