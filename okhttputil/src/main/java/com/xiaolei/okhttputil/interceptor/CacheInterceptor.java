@@ -192,14 +192,17 @@ public class CacheInterceptor implements Interceptor
                     }
                 }
                 cacheImpl.put(key + "@:headers", stringBuilder.toString());
-                stringBuilder.delete(0, stringBuilder.length() - 1);//清空
+                if (stringBuilder.length() > 0)
+                {
+                    stringBuilder.delete(0, stringBuilder.length() - 1);//清空
+                }
             }
             ProxyInputStream proxyStream = new ProxyInputStream(responseBody.byteStream(), key, cacheImpl);
             // cacheImpl.put(key, proxyStream);
             cacheImpl.put(key + "@:mediaType", typeStr);
             cacheImpl.put(key + "@:protocol", protocol.name() + "");
             cacheImpl.put(key + "@:message", message == null ? "" : message);
-            
+
             // InputStream inputStream = cacheImpl.getStream(key);
             Source source = Okio.source(proxyStream);
             BufferedSource bufferedSource = Okio.buffer(source);
