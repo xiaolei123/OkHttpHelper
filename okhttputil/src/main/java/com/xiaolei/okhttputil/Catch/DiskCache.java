@@ -1,19 +1,58 @@
 package com.xiaolei.okhttputil.Catch;
 
-
 import java.io.*;
 import java.util.*;
 
 /**
- * 自己定义的本地文件缓存类
+ * 本地文件缓存工具，以一个key对应多个value的形式缓存
+ * 
+ *  ----key1 ->  index0
+ *               index1
+ *               index2
+ *               index3
+ *               index4
+ *               
+ *  ----key2 ->  index0
+ *               index1
+ *               index2
+ *               index3
+ *               index4
+ *               
+ * 缓存文件，将文件分块缓存起来，可追加，可覆盖。
+ * 读取时，针对key，将所有的块整合成同一个文件流，再次读取
+ * 
  */
 public class DiskCache
 {
     private static DiskCache diskCache;
     private File dir = null;
+    private String version;
+    
+    /**
+     * 将列表，以index的先后进行排序，避免混乱
+     */
+    private Comparator comparator = new Comparator<File>()
+    {
+        @Override
+        public int compare(File f1, File f2)
+        {
+            String firstName = f1.getName();
+            String secendName = f2.getName();
+            String fNames[] = firstName.split("\\.");
+            String sNames[] = secendName.split("\\.");
+            int fnum = Integer.parseInt(fNames[1]);
+            int snum = Integer.parseInt(sNames[1]);
+            return fnum - snum;
+        }
+    };
 
+    /**
+     * @param dir     缓存文件目录
+     * @param version 版本控制
+     */
     private DiskCache(File dir, String version)
     {
+        this.version = version;
         if (!dir.exists())
         {
             boolean result = dir.mkdirs();
@@ -45,7 +84,7 @@ public class DiskCache
             @Override
             public boolean accept(File pathname)
             {
-                return pathname.isFile() && pathname.getName().split("\\.")[0].equals(key);
+                return pathname.isFile() && pathname.getName().matches(key + "\\.[0-9]+" + "\\." + version);
             }
         });
 
@@ -53,7 +92,7 @@ public class DiskCache
         {
             boolean deleteResult = file.delete();
         }
-        File file = new File(dir, key + "." + 0);
+        File file = new File(dir, key + "." + 0 + "." + version);
         createFileByStream(file, in);
     }
 
@@ -71,25 +110,27 @@ public class DiskCache
             @Override
             public boolean accept(File pathname)
             {
-                return pathname.isFile() && pathname.getName().split("\\.")[0].equals(key);
+                return pathname.isFile() && pathname.getName().matches(key + "\\.[0-9]+" + "\\." + version);
             }
         });
-
-        for (File file : files)
+        if (files != null)
         {
-            String indexStr = file.getName().split("\\.")[1];
-            int index = -1;
-            try
+            for (File file : files)
             {
-                index = Integer.parseInt(indexStr);
-            } catch (Exception e)
-            {
-                index = -1;
+                String indexStr = file.getName().split("\\.")[1];
+                int index = -1;
+                try
+                {
+                    index = Integer.parseInt(indexStr);
+                } catch (Exception e)
+                {
+                    index = -1;
+                }
+                maxIndex = (index >= maxIndex) ? index : maxIndex;
             }
-            maxIndex = (index >= maxIndex) ? index : maxIndex;
+            File file = new File(dir, key + "." + (++maxIndex) + "." + version);
+            createFileByStream(file, in);
         }
-        File file = new File(dir, key + "." + (++maxIndex));
-        createFileByStream(file, in);
     }
 
     /**
@@ -117,7 +158,7 @@ public class DiskCache
             @Override
             public boolean accept(File pathname)
             {
-                return pathname.isFile() && pathname.getName().startsWith(key + ".");
+                return pathname.isFile() && pathname.getName().matches(key + "\\.[0-9]+" + "\\." + version);
             }
         });
         if (files != null)
@@ -125,7 +166,7 @@ public class DiskCache
             try
             {
                 List<File> fileList = Arrays.asList(files);
-                Collections.sort(fileList);
+                Collections.sort(fileList, comparator);
                 Vector<InputStream> vector = new Vector<>();
                 for (File file : fileList)
                 {
@@ -152,7 +193,7 @@ public class DiskCache
     public synchronized InputStream get(String key, int index)
     {
         InputStream inputStream = null;
-        File file = new File(dir, key + "." + index);
+        File file = new File(dir, key + "." + index + "." + version);
         if (file.exists() && file.isFile())
         {
             try
@@ -176,33 +217,60 @@ public class DiskCache
     public synchronized String getString(String key, int index)
     {
         String result = null;
-        InputStream in = get(key, index);
-        if (in != null)
+        InputStream is = get(key, index);
+        if (is != null)
         {
-            try
-            {
-                LinkedList<Byte> linkedList = new LinkedList<>();
-                byte b = (byte) in.read();
-                while (b != -1)
-                {
-                    linkedList.add(b);
-                    b = (byte) in.read();
-                }
-                byte buff[] = new byte[linkedList.size()];
-                for (int a = 0; a < linkedList.size(); a++)
-                {
-                    buff[a] = linkedList.get(a);
-                }
-                linkedList.clear();
-                result = new String(buff);
-            } catch (IOException e)
-            {
-                e.printStackTrace();
-            }
+            result = turnStream2String(is);
         }
         return result;
     }
 
+    /**
+     * 已知文件内容是文字的情况下,把所有的文件，整合流的形式，转换成字符串
+     *
+     * @param key
+     * @return
+     */
+    public synchronized String getString(String key)
+    {
+        String result = null;
+        InputStream is = get(key);
+        if (is != null)
+        {
+            result = turnStream2String(is);
+        }
+        return result;
+    }
+
+    /**
+     * 将输入流转换成字符串
+     *
+     * @param is
+     * @return
+     */
+    public String turnStream2String(InputStream is)
+    {
+        String result = null;
+        try
+        {
+            InputStreamReader isReader = new InputStreamReader(is);
+            BufferedReader reader = new BufferedReader(isReader);
+            StringBuffer buffer = new StringBuffer();
+            String line = null;
+            while ((line = reader.readLine()) != null)
+            {
+                buffer.append(line);
+            }
+            is.close();
+            reader.close();
+            result = buffer.toString();
+            buffer.delete(0, buffer.length() - 1);
+        } catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+        return result;
+    }
 
     /**
      * 删除指定key的所有index文件
@@ -216,12 +284,15 @@ public class DiskCache
             @Override
             public boolean accept(File pathname)
             {
-                return pathname.isFile() && pathname.getName().startsWith(key + ".");
+                return pathname.isFile() && pathname.getName().matches(key + "\\.[0-9]+" + "\\." + version);
             }
         });
-        for (File file : files)
+        if (files != null)
         {
-            file.delete();
+            for (File file : files)
+            {
+                file.delete();
+            }
         }
     }
 
@@ -233,7 +304,7 @@ public class DiskCache
      */
     public synchronized void delete(String key, int index)
     {
-        File file = new File(dir, key + "." + index);
+        File file = new File(dir, key + "." + index + "." + version);
         if (file.exists() && file.isFile())
         {
             file.delete();
@@ -250,7 +321,7 @@ public class DiskCache
             @Override
             public boolean accept(File pathname)
             {
-                return pathname.isFile();
+                return pathname.isFile() && pathname.getName().matches("[a-zA-Z]+\\.[0-9]+" + "\\." + version);
             }
         });
         if (files != null)
@@ -276,12 +347,13 @@ public class DiskCache
             @Override
             public boolean accept(File pathname)
             {
-                return pathname.isFile() && pathname.getName().split("\\.")[0].equals(key);
+                return pathname.isFile() && pathname.getName().matches(key + "\\.[0-9]+" + "\\." + version);
             }
         });
 
         if (files != null)
         {
+            Arrays.sort(files, comparator);
             indexs = new int[files.length];
             for (int a = 0; a < files.length; a++)
             {
@@ -294,6 +366,10 @@ public class DiskCache
         return indexs;
     }
 
+    /**
+     * @param dir     缓存文件目录
+     * @param version 版本控制
+     */
     public synchronized static DiskCache open(File dir, String version)
     {
         if (diskCache == null)
@@ -316,7 +392,6 @@ public class DiskCache
             if (!file.exists())
             {
                 boolean createResult = file.createNewFile();
-                System.out.println("createResult:" + createResult);
             }
             FileOutputStream fos = new FileOutputStream(file);
             byte buff[] = new byte[1024];
