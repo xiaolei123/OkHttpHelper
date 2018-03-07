@@ -24,6 +24,6 @@ public interface Net
     Call<ResponseBody> getImg();
     
     @Headers(CacheHeaders.NORMAL)
-    @GET("http://192.168.1.115:8080/app/testEmpty")
+    @GET("http://192.168.1.111:8080/app/testEmpty")
     Call<String> getEmpty(); 
 }

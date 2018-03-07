@@ -24,6 +24,8 @@ public class ProxyInputStream extends InputStream
         this.inputStream = inputStream;
         this.key = key;
         this.cacheImpl = cacheImpl;
+        // 进行保存操作
+        cacheImpl.put(key, new ByteArrayInputStream("".getBytes()));
     }
 
     @Override
@@ -89,21 +91,13 @@ public class ProxyInputStream extends InputStream
             // 进行保存操作
             byteBuffer.flip();// 转换角色，从写的状态，回到读取状态
             byte buff[] = getBytesFromBuffer(byteBuffer);
-            if (isFirst)
-            {
-                // 第一次保存，则覆盖之前
-                cacheImpl.put(key, new ByteArrayInputStream(buff));
-                isFirst = false;
-            } else
-            {
-                // 第二次保存，则往后追加
-                cacheImpl.append(key, new ByteArrayInputStream(buff));
-            }
+            // 往后追加
+            cacheImpl.append(key, new ByteArrayInputStream(buff));
         }
         return b;
     }
 
-    private int maxSize = 1024 * 10;//初始化缓冲区设置为4K
+    private int maxSize = 1024 * 100;//初始化缓冲区设置为100K
     private ByteBuffer byteBuffer = ByteBuffer.allocate(maxSize);
     private boolean isFirst = true;
 
