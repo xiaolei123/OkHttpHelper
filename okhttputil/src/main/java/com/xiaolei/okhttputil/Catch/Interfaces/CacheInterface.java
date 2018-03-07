@@ -27,6 +27,13 @@ public interface CacheInterface
     public void put(String key, InputStream inputStream);
 
     /**
+     * 追加
+     * @param key
+     * @param inputStream
+     */
+    public void append(String key, InputStream inputStream);
+    
+    /**
      * 获取字符串
      *
      * @param key

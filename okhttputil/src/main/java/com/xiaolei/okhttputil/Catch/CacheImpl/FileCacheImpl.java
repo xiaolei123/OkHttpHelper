@@ -63,6 +63,13 @@ public class FileCacheImpl implements CacheInterface
         diskCache.put(key,inputStream);
     }
 
+    @Override
+    public void append(String key, InputStream inputStream)
+    {
+        key = Util.encryptMD5(key);
+        diskCache.append(key,inputStream);
+    }
+
     /**
      * 根据Key获取字符串
      *

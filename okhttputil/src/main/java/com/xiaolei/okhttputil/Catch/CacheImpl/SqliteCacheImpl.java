@@ -86,19 +86,54 @@ public class SqliteCacheImpl implements CacheInterface
         sqLiteDatabase.insert(TextTab, null, values);
     }
 
+    /**
+     * 覆盖式的添加
+     *
+     * @param key
+     * @param inputStream
+     */
     @Override
     public void put(String key, InputStream inputStream)
     {
+        try
+        {
+            sqLiteDatabase.execSQL("delete from " + BlobTab + " where key= '" + Util.encryptMD5(key) + "'");
+            append(key, inputStream);
+        } catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 追加式的添加
+     *
+     * @param key
+     * @param inputStream
+     */
+    @Override
+    public void append(String key, InputStream inputStream)
+    {
+        //待实现
         key = Util.encryptMD5(key);
         byte buff[] = new byte[1024 * 100];//设置缓冲区为100K
         try
         {
-            sqLiteDatabase.execSQL("delete from " + BlobTab + " where key= '" + key + "'");
-
-            ContentValues nullValue = new ContentValues();
-            nullValue.put("key", key);
-            nullValue.put("value", "".getBytes());
-            sqLiteDatabase.insert(BlobTab, null, nullValue);
+            // 1. 检查是否有数据，没有数据则添加空数据，有数据，则直接追加
+            Cursor cursor = sqLiteDatabase.rawQuery("SELECT count(id) as count FROM BlobCacheTb WHERE `key` = '" + key + "'", null);
+            if (cursor.moveToNext())
+            {
+                int count = cursor.getInt(cursor.getColumnIndex("count"));
+                if (count <= 0)
+                {
+                    ContentValues nullValue = new ContentValues();
+                    nullValue.put("key", key);
+                    nullValue.put("value", "".getBytes());
+                    sqLiteDatabase.insert(BlobTab, null, nullValue);
+                }
+            }
+            cursor.close();
+            
             
             int len = 0;
             while ((len = inputStream.read(buff)) > 0)
@@ -115,6 +150,7 @@ public class SqliteCacheImpl implements CacheInterface
         {
             e.printStackTrace();
         }
+
     }
 
     @Override
