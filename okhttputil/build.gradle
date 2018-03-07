@@ -24,5 +24,4 @@ publish {
 
 dependencies {
     api 'com.squareup.okhttp3:okhttp:3.9.1'
-    compile 'com.jakewharton:disklrucache:2.0.2'
 }

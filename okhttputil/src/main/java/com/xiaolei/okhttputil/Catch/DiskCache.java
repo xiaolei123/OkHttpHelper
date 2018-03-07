@@ -2,35 +2,31 @@ package com.xiaolei.okhttputil.Catch;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * 本地文件缓存工具，以一个key对应多个value的形式缓存
- * 
- *  ----key1 ->  index0
- *               index1
- *               index2
- *               index3
- *               index4
- *               
- *  ----key2 ->  index0
- *               index1
- *               index2
- *               index3
- *               index4
- *               
+ * <p>
+ * ----key1 ->  index0
+ * index1
+ * index2
+ * index3
+ * index4
+ * <p>
+ * ----key2 ->  index0
+ * index1
+ * index2
+ * index3
+ * index4
+ * <p>
  * 缓存文件，将文件分块缓存起来，可追加，可覆盖。
  * 读取时，针对key，将所有的块整合成同一个文件流，再次读取
- * 
  */
 public class DiskCache
 {
     private static DiskCache diskCache;
     private File dir = null;
     private String version;
-    
-    /**
-     * 将列表，以index的先后进行排序，避免混乱
-     */
     private Comparator comparator = new Comparator<File>()
     {
         @Override
@@ -45,6 +41,7 @@ public class DiskCache
             return fnum - snum;
         }
     };
+    private LinkedBlockingQueue<CacheWrap> diskPool = new LinkedBlockingQueue<>();
 
     /**
      * @param dir     缓存文件目录
@@ -58,6 +55,24 @@ public class DiskCache
             boolean result = dir.mkdirs();
         }
         this.dir = dir;
+        new Thread() // 用一个死线程，循环对阻塞队列进行异步监控
+        {
+            @Override
+            public void run()
+            {
+                while (true)
+                {
+                    try
+                    {
+                        CacheWrap wrap = diskPool.take();
+                        putOrAppend(wrap);
+                    } catch (InterruptedException e)
+                    {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }.start();
     }
 
     /**
@@ -66,7 +81,7 @@ public class DiskCache
      * @param key
      * @param string 需要保存的字符串
      */
-    public synchronized void put(String key, String string)
+    public void put(String key, String string)
     {
         put(key, new ByteArrayInputStream(string.getBytes()));
     }
@@ -77,23 +92,15 @@ public class DiskCache
      * @param key
      * @param in
      */
-    public synchronized void put(final String key, InputStream in)
+    public void put(final String key, InputStream in)
     {
-        File files[] = dir.listFiles(new FileFilter()
+        try
         {
-            @Override
-            public boolean accept(File pathname)
-            {
-                return pathname.isFile() && pathname.getName().matches(key + "\\.[0-9]+" + "\\." + version);
-            }
-        });
-
-        for (File file : files)
+            diskPool.put(new CacheWrap(key, in, CacheWrap.Action.PUT));
+        } catch (InterruptedException e)
         {
-            boolean deleteResult = file.delete();
+            e.printStackTrace();
         }
-        File file = new File(dir, key + "." + 0 + "." + version);
-        createFileByStream(file, in);
     }
 
     /**
@@ -102,9 +109,26 @@ public class DiskCache
      * @param key
      * @param in
      */
-    public synchronized void append(final String key, InputStream in)
+    public void append(final String key, InputStream in)
     {
-        int maxIndex = -1;
+        try
+        {
+            diskPool.put(new CacheWrap(key, in, CacheWrap.Action.APPEND));
+        } catch (InterruptedException e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 根据条件，自动选择是覆盖添加或者，追加
+     *
+     * @param wrap
+     */
+    private synchronized void putOrAppend(CacheWrap wrap)
+    {
+        final String key = wrap.key;
+        final InputStream in = wrap.is;
         File files[] = dir.listFiles(new FileFilter()
         {
             @Override
@@ -113,24 +137,44 @@ public class DiskCache
                 return pathname.isFile() && pathname.getName().matches(key + "\\.[0-9]+" + "\\." + version);
             }
         });
+
         if (files != null)
         {
-            for (File file : files)
+            switch (wrap.action)
             {
-                String indexStr = file.getName().split("\\.")[1];
-                int index = -1;
-                try
+                case PUT:
                 {
-                    index = Integer.parseInt(indexStr);
-                } catch (Exception e)
-                {
-                    index = -1;
+                    for (File file : files)
+                    {
+                        boolean deleteResult = file.delete();
+                    }
+                    File file = new File(dir, key + "." + 0 + "." + version);
+                    createFileByStream(file, in);
                 }
-                maxIndex = (index >= maxIndex) ? index : maxIndex;
+                break;
+                case APPEND:
+                {
+                    int maxIndex = -1;
+                    for (File file : files)
+                    {
+                        String indexStr = file.getName().split("\\.")[1];
+                        int index = -1;
+                        try
+                        {
+                            index = Integer.parseInt(indexStr);
+                        } catch (Exception e)
+                        {
+                            index = -1;
+                        }
+                        maxIndex = (index >= maxIndex) ? index : maxIndex;
+                    }
+                    File file = new File(dir, key + "." + (++maxIndex) + "." + version);
+                    createFileByStream(file, in);
+                }
+                break;
             }
-            File file = new File(dir, key + "." + (++maxIndex) + "." + version);
-            createFileByStream(file, in);
         }
+
     }
 
     /**
@@ -139,7 +183,7 @@ public class DiskCache
      * @param key
      * @param string
      */
-    public synchronized void append(String key, String string)
+    public void append(String key, String string)
     {
         append(key, new ByteArrayInputStream(string.getBytes()));
     }
@@ -264,7 +308,10 @@ public class DiskCache
             is.close();
             reader.close();
             result = buffer.toString();
-            buffer.delete(0, buffer.length() - 1);
+            if (buffer.length() > 0)
+            {
+                buffer.delete(0, buffer.length() - 1);
+            }
         } catch (Exception e)
         {
             e.printStackTrace();
@@ -367,6 +414,25 @@ public class DiskCache
     }
 
     /**
+     * 是否存在这个key
+     *
+     * @param key
+     * @return
+     */
+    public synchronized boolean containsKey(final String key)
+    {
+        File files[] = dir.listFiles(new FileFilter()
+        {
+            @Override
+            public boolean accept(File pathname)
+            {
+                return pathname.isFile() && pathname.getName().matches(key + "\\.[0-9]+" + "\\." + version);
+            }
+        });
+        return files != null && files.length > 0;
+    }
+
+    /**
      * @param dir     缓存文件目录
      * @param version 版本控制
      */
@@ -405,6 +471,26 @@ public class DiskCache
         } catch (IOException e)
         {
             e.printStackTrace();
+        }
+    }
+
+
+    static class CacheWrap
+    {
+        InputStream is;
+        String key;
+        Action action;
+
+        enum Action
+        {
+            PUT, APPEND
+        }
+
+        CacheWrap(String key, InputStream is, Action action)
+        {
+            this.key = key;
+            this.is = is;
+            this.action = action;
         }
     }
 }

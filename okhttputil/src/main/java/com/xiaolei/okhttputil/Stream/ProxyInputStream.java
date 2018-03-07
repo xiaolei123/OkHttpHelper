@@ -18,18 +18,6 @@ public class ProxyInputStream extends InputStream
     }
 
     @Override
-    public int read(byte[] b) throws IOException
-    {
-        return inputStream.read(b);
-    }
-
-    @Override
-    public int read(byte[] b, int off, int len) throws IOException
-    {
-        return inputStream.read(b, off, len);
-    }
-
-    @Override
     public long skip(long n) throws IOException
     {
         return inputStream.skip(n);
