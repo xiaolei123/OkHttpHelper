@@ -72,11 +72,18 @@ public class CacheInterceptor implements Interceptor
         String cacheHead = request.header("cache");
         String cache_control = request.header("Cache-Control");
         if ("true".equals(cacheHead) ||                              // 意思是要缓存
-                (cache_control != null && !cache_control.isEmpty())) // 这里还支持WEB端协议的缓存头
+                "cache_first".equals(cacheHead) ||                       // 缓存优先规则
+                    (cache_control != null && !cache_control.isEmpty())) // 这里还支持WEB端协议的缓存头
         {
             String url = request.url().url().toString();
             String reqBodyStr = getPostParams(request);
             String key = url + "?" + reqBodyStr;//链接就是缓存的key
+            
+            if("cache_first".equals(cacheHead) && cacheImpl.containsKey(key)) // 缓存优先原则
+            {
+                return getCacheResponse(key, request);
+            }
+            
             try
             {
                 // 网络正常，缓存正常数据
@@ -92,7 +99,7 @@ public class CacheInterceptor implements Interceptor
                 if (cacheImpl.containsKey(key)) // 如果缓存里面有数据
                 {
                     // 则取缓存
-                    return getResponse(key, request);
+                    return getCacheResponse(key, request);
                 } else
                 {
                     // 否则，正常流程走
@@ -113,7 +120,7 @@ public class CacheInterceptor implements Interceptor
      * @param request
      * @return
      */
-    private Response getResponse(String key, Request request)
+    private Response getCacheResponse(String key, Request request)
     {
         InputStream inputStream = cacheImpl.getStream(key);
         String mediaTypeStr = cacheImpl.getString(key + "@:mediaType");

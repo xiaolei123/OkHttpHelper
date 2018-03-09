@@ -10,6 +10,8 @@ public class CacheHeaders
 {
     // 自己设置的一个标签
     public static final String NORMAL = "cache:true";
+    // 缓存优先规则，如果有缓存，则取缓存，没有缓存，则去网络取
+    public static final String CACHE_FIRST = "cache:cache_first";
     // 客户端可以缓存
     public static final String PRIVATE = "Cache-Control:private";
     // 客户端和代理服务器都可缓存（前端的同学，可以认为public和private是一样的）

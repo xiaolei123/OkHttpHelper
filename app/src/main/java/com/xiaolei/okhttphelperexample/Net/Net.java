@@ -19,7 +19,7 @@ public interface Net
     @GET("/")
     public Call<String> getText(@Query("w") String a);
 
-    @Headers(CacheHeaders.NORMAL)
+    @Headers(CacheHeaders.CACHE_FIRST)
     @GET("https://pic4.zhimg.com/v2-67ee006ec9f4171121b245c57079bee6_r.jpg")
     Call<ResponseBody> getImg();
     
